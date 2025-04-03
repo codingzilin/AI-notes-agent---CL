@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI-Powered Note Taking System</title>
+    <!-- Include Quill Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+        
+        .section {
+            border: 2px solid #000;
+            padding: 15px;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .section-title {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+        }
+        
+        .note-box, .action-box {
+            border: 1px solid #000;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        
+        .note-actions {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            display: none;
+        }
+        
+        .note-box:hover .note-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .note-action-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 2px;
+            border-radius: 3px;
+        }
+        
+        .edit-btn:hover {
+            color: #2196F3;
+        }
+        
+        .delete-btn:hover {
+            color: #F44336;
+        }
+        
+        .note-box:hover, .action-box:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .note-box.selected, .action-box.selected {
+            background-color: #e0e0ff;
+        }
+        
+        .note-box.selected::before {
+            content: "✓";
+            color: #4CAF50;
+            font-weight: bold;
+            margin-right: 5px;
+            display: inline-block;
+        }
+        
+        .results-box {
+            border: 1px solid #000;
+            padding: 10px;
+            height: 100%;
+            overflow-y: auto;
+        }
+        
+        .add-form {
+            display: flex;
+            margin-top: 10px;
+            gap: 10px;
+        }
+        
+        .add-form input, .add-form textarea {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+        }
+        
+        .add-form button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .add-form button:hover {
+            background-color: #45a049;
+        }
+        
+        .search-bar {
+            margin-bottom: 15px;
+            display: flex;
+        }
+        
+        .search-bar input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .button-group button {
+            flex: 1;
+            padding: 8px;
+            cursor: pointer;
+        }
+        
+        .note-content {
+            margin-top: 5px;
+            white-space: pre-wrap;
+        }
+        
+        .note-title {
+            font-weight: bold;
+        }
+        
+        .timestamp {
+            font-size: 0.8em;
+            color: #666;
+            margin-top: 5px;
+        }
+        
+        .execute-button {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .execute-button:hover {
+            background-color: #45a049;
+        }
+        
+        /* Rich Text Editor Styles */
+        .ql-toolbar {
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+            background-color: #f9f9f9;
+        }
+        
+        .ql-container {
+            height: 200px;
+            font-size: 14px;
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+        }
+        
+        .ql-editor {
+            min-height: 200px;
+        }
+        
+        .editor-container {
+            margin-bottom: 15px;
+        }
+        
+        .note-content-rich {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            margin-top: 5px;
+        }
+        
+        /* Code block styling */
+        pre {
+            background-color: #f4f4f4;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 10px;
+            font-family: monospace;
+        }
+        
+        code {
+            font-family: monospace;
+            background-color: #f4f4f4;
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.4);
+        }
+        
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+        }
+        
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        .close:hover {
+            color: black;
+        }
+        
+        .settings-button {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #555;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .api-key-form {
+            margin-top: 15px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+        }
+        
+        .api-key-input {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+        }
+        
+        .save-api-btn {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .loading-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,0.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <button class="settings-button" id="settings-btn">⚙️</button>
+    <div class="container">
+        <div class="section">
+            <div class="section-title">Notes</div>
+            <div class="search-bar">
+                <input type="text" id="note-search" placeholder="Search notes...">
+            </div>
+            <div class="content-area" id="notes-area">
+                <!-- Notes will be populated here -->
+            </div>
+            <div class="add-form">
+                <input type="text" id="note-title" placeholder="Title">
+                <button id="add-note-btn">Add Note</button>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Actions</div>
+            <div class="search-bar">
+                <input type="text" id="action-search" placeholder="Search actions...">
+            </div>
+            <div class="content-area" id="actions-area">
+                <!-- Actions will be populated here -->
+            </div>
+            <div class="add-form">
+                <input type="text" id="action-title" placeholder="Action description">
+                <button id="add-action-btn">Add Action</button>
+            </div>
+            <button class="execute-button" id="execute-btn">Execute Action</button>
+        </div>
+        
+        <div class="section">
+            <div class="section-title">Results</div>
+            <div class="results-box" id="results-area">
+                <!-- Results will appear here -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="close-settings">&times;</span>
+            <h2>Settings</h2>
+            <div class="api-key-form">
+                <h3>OpenAI API Key</h3>
+                <p>Enter your OpenAI API key to enable AI features.</p>
+                <input type="password" id="api-key-input" class="api-key-input" placeholder="sk-...">
+                <button id="save-api-key" class="save-api-btn">Save API Key</button>
+                <p><small>Your API key is stored only in your browser's local storage.</small></p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Note Modal -->
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add/Edit Note</h2>
+            <input type="text" id="modal-note-title" placeholder="Title" style="width: 100%; margin-bottom: 10px; padding: 8px;">
+            
+            <!-- Rich Text Editor -->
+            <div class="editor-container">
+                <div id="editor"></div>
+            </div>
+            
+            <div class="button-group">
+                <button id="save-note-btn">Save</button>
+                <button id="cancel-note-btn">Cancel</button>
+                <button id="insert-code-btn">Insert Code Block</button>
+                <input type="file" id="image-upload" style="display: none;" accept="image/*">
+                <button id="insert-image-btn">Insert Image</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // OpenAI API key storage
+        let openaiApiKey = localStorage.getItem('openai_api_key') || '';
+        
+        // Quill Rich Text Editor instance
+        let quill;
+        
+        // Initialize IndexedDB
+        let db;
+        const dbName = "NoteTakingSystem";
+        const dbVersion = 1;
+        
+        // Open database connection
+        const request = indexedDB.open(dbName, dbVersion);
+        
+        request.onupgradeneeded = function(event) {
+            db = event.target.result;
+            
+            // Update request for database schema update
+            if (!db.objectStoreNames.contains("notes")) {
+                const notesStore = db.createObjectStore("notes", { keyPath: "id", autoIncrement: true });
+                notesStore.createIndex("title", "title", { unique: false });
+                notesStore.createIndex("content", "content", { unique: false });
+                notesStore.createIndex("timestamp", "timestamp", { unique: false });
+                // Add new index for content type
+                notesStore.createIndex("contentType", "contentType", { unique: false });
+            }
+            
+            if (!db.objectStoreNames.contains("actions")) {
+                const actionsStore = db.createObjectStore("actions", { keyPath: "id", autoIncrement: true });
+                actionsStore.createIndex("description", "description", { unique: false });
+            }
+        };
+        
+        request.onsuccess = function(event) {
+            db = event.target.result;
+            console.log("Database opened successfully");
+            
+            // Load initial data
+            loadNotes();
+            loadActions();
+        };
+        
+        request.onerror = function(event) {
+            console.error("Database error:", event.target.error);
+        };
+        
+        // DOM Elements
+        const notesArea = document.getElementById("notes-area");
+        const actionsArea = document.getElementById("actions-area");
+        const resultsArea = document.getElementById("results-area");
+        const addNoteBtn = document.getElementById("add-note-btn");
+        const addActionBtn = document.getElementById("add-action-btn");
+        const executeBtn = document.getElementById("execute-btn");
+        const noteSearch = document.getElementById("note-search");
+        const actionSearch = document.getElementById("action-search");
+        
+        // Modal elements
+        const noteModal = document.getElementById("note-modal");
+        const modalNoteTitle = document.getElementById("modal-note-title");
+        const saveNoteBtn = document.getElementById("save-note-btn");
+        const cancelNoteBtn = document.getElementById("cancel-note-btn");
+        const closeModal = document.getElementsByClassName("close")[0];
+        const insertCodeBtn = document.getElementById("insert-code-btn");
+        const insertImageBtn = document.getElementById("insert-image-btn");
+        const imageUpload = document.getElementById("image-upload");
+        
+        // Settings elements
+        const settingsBtn = document.getElementById("settings-btn");
+        const settingsModal = document.getElementById("settings-modal");
+        const closeSettings = document.getElementById("close-settings");
+        const apiKeyInput = document.getElementById("api-key-input");
+        const saveApiKeyBtn = document.getElementById("save-api-key");
+        
+        let selectedNoteIds = [];
+        let selectedActionId = null;
+        let editingNoteId = null;
+        
+        // Initialize Quill editor
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize Quill with toolbar options
+            quill = new Quill('#editor', {
+                modules: {
+                    toolbar: [
+                        [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
+                        ['bold', 'italic', 'underline', 'strike'],
+                        [{ 'color': [] }, { 'background': [] }],
+                        [{ 'list': 'ordered' }, { 'list': 'bullet' }],
+                        ['blockquote', 'code-block'],
+                        ['link'],
+                        ['clean']
+                    ]
+                },
+                placeholder: 'Enter your note here...',
+                theme: 'snow'
+            });
+        });
+        
+        // Add Note button click
+        addNoteBtn.addEventListener("click", function() {
+            openNoteModal();
+        });
+        
+        // Add Action button click
+        addActionBtn.addEventListener("click", function() {
+            const actionTitle = document.getElementById("action-title").value.trim();
+            
+            if (actionTitle) {
+                addAction(actionTitle);
+                document.getElementById("action-title").value = "";
+            }
+        });
+        
+        // Execute button click
+        executeBtn.addEventListener("click", function() {
+            executeAction();
+        });
+        
+        // Note search
+        noteSearch.addEventListener("input", function() {
+            loadNotes(this.value);
+        });
+        
+        // Action search
+        actionSearch.addEventListener("input", function() {
+            loadActions(this.value);
+        });
+        
+        // Modal events
+        saveNoteBtn.addEventListener("click", function() {
+            saveNote();
+        });
+        
+        cancelNoteBtn.addEventListener("click", function() {
+            closeNoteModal();
+        });
+        
+        closeModal.addEventListener("click", function() {
+            closeNoteModal();
+        });
+        
+        window.addEventListener("click", function(event) {
+            if (event.target === noteModal) {
+                closeNoteModal();
+            }
+            if (event.target === settingsModal) {
+                settingsModal.style.display = "none";
+            }
+        });
+        
+        // Insert Code Block button
+        insertCodeBtn.addEventListener("click", function() {
+            const selection = quill.getSelection();
+            if (selection) {
+                // Insert a code block at the current cursor position
+                quill.insertText(selection.index, '\n');
+                quill.formatLine(selection.index, 1, 'code-block', true);
+                quill.setSelection(selection.index + 1, 0);
+            } else {
+                // If no selection, append to the end
+                const length = quill.getLength();
+                quill.insertText(length, '\n');
+                quill.formatLine(length, 1, 'code-block', true);
+                quill.setSelection(length + 1, 0);
+            }
+        });
+        
+        // Insert Image button
+        insertImageBtn.addEventListener("click", function() {
+            imageUpload.click();
+        });
+        
+        // Handle image upload
+        imageUpload.addEventListener("change", function() {
+            const file = imageUpload.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const selection = quill.getSelection(true);
+                    // Insert the image at the current cursor position
+                    quill.insertEmbed(selection.index, 'image', e.target.result);
+                    // Move cursor after the image
+                    quill.setSelection(selection.index + 1);
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // Settings modal events
+        settingsBtn.addEventListener("click", function() {
+            apiKeyInput.value = openaiApiKey;
+            settingsModal.style.display = "block";
+        });
+        
+        closeSettings.addEventListener("click", function() {
+            settingsModal.style.display = "none";
+        });
+        
+        saveApiKeyBtn.addEventListener("click", function() {
+            const apiKey = apiKeyInput.value.trim();
+            if (apiKey) {
+                openaiApiKey = apiKey;
+                localStorage.setItem('openai_api_key', apiKey);
+                settingsModal.style.display = "none";
+                alert("API key saved successfully!");
+            } else {
+                alert("Please enter a valid API key.");
+            }
+        });
+        
+        // Functions
+        function openNoteModal(noteId = null) {
+            editingNoteId = noteId;
+            
+            if (noteId) {
+                // Load existing note data
+                const transaction = db.transaction(["notes"], "readonly");
+                const store = transaction.objectStore("notes");
+                const request = store.get(noteId);
+                
+                request.onsuccess = function(event) {
+                    const note = event.target.result;
+                    if (note) {
+                        modalNoteTitle.value = note.title;
+                        modalNoteContent.value = note.content;
+                    }
+                };
+                
+                transaction.oncomplete = function() {
+                    noteModal.style.display = "block";
+                };
+            } else {
+                // New note
+                modalNoteTitle.value = "";
+                modalNoteContent.value = "";
+                noteModal.style.display = "block";
+            }
+        }
+        
+        function deleteNote(noteId) {
+            const transaction = db.transaction(["notes"], "readwrite");
+            const store = transaction.objectStore("notes");
+            const request = store.delete(noteId);
+            
+            request.onsuccess = function() {
+                // Remove the note from selection if it was selected
+                const index = selectedNoteIds.indexOf(noteId);
+                if (index !== -1) {
+                    selectedNoteIds.splice(index, 1);
+                }
+                
+                // Reload notes list
+                loadNotes();
+            };
+            
+            request.onerror = function(event) {
+                console.error("Error deleting note:", event.target.error);
+                alert("Error deleting note. Please try again.");
+            };
+        }
+        
+        function closeNoteModal() {
+            noteModal.style.display = "none";
+            editingNoteId = null;
+        }
+        
+        function saveNote() {
+            const title = modalNoteTitle.value.trim();
+            const content = modalNoteContent.value.trim();
+            
+            if (title) {
+                const transaction = db.transaction(["notes"], "readwrite");
+                const store = transaction.objectStore("notes");
+                
+                const note = {
+                    title: title,
+                    content: content,
+                    timestamp: new Date().toISOString()
+                };
+                
+                if (editingNoteId) {
+                    // Update existing note
+                    note.id = editingNoteId;
+                    store.put(note);
+                } else {
+                    // Add new note
+                    store.add(note);
+                }
+                
+                transaction.oncomplete = function() {
+                    closeNoteModal();
+                    loadNotes();
+                };
+            }
+        }
+        
+        function addAction(description) {
+            const transaction = db.transaction(["actions"], "readwrite");
+            const store = transaction.objectStore("actions");
+            
+            const action = {
+                description: description
+            };
+            
+            store.add(action);
+            
+            transaction.oncomplete = function() {
+                loadActions();
+            };
+        }
+        
+        function loadNotes(searchTerm = "") {
+            notesArea.innerHTML = "";
+            
+            const transaction = db.transaction(["notes"], "readonly");
+            const store = transaction.objectStore("notes");
+            const index = store.index("timestamp");
+            const request = index.openCursor(null, "prev"); // Most recent first
+            
+            const notes = [];
+            
+            request.onsuccess = function(event) {
+                const cursor = event.target.result;
+                
+                if (cursor) {
+                    const note = cursor.value;
+                    if (!searchTerm || 
+                        note.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
+                        note.content.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        notes.push(note);
+                    }
+                    cursor.continue();
+                } else {
+                    // Display notes
+                    notes.forEach(note => {
+                        const noteBox = document.createElement("div");
+                        noteBox.className = "note-box";
+                        noteBox.setAttribute("data-id", note.id);
+                        
+                        const titleElem = document.createElement("div");
+                        titleElem.className = "note-title";
+                        titleElem.textContent = note.title;
+                        
+                        const contentPreview = document.createElement("div");
+                        contentPreview.className = "note-content-rich";
+                        
+                        // Check if content is HTML (rich text)
+                        if (note.content.startsWith('<') && note.content.includes('</')) {
+                            // It's HTML content, render it safely
+                            contentPreview.innerHTML = note.content;
+                        } else {
+                            // It's plain text
+                            contentPreview.textContent = note.content.length > 100 
+                                ? note.content.substring(0, 100) + "..." 
+                                : note.content;
+                        }
+                        
+                        const timestamp = document.createElement("div");
+                        timestamp.className = "timestamp";
+                        timestamp.textContent = new Date(note.timestamp).toLocaleString();
+                        
+                        noteBox.appendChild(titleElem);
+                        noteBox.appendChild(contentPreview);
+                        noteBox.appendChild(timestamp);
+                        
+                        // Add edit and delete buttons
+                        const actionButtons = document.createElement("div");
+                        actionButtons.className = "note-actions";
+                        
+                        const editButton = document.createElement("button");
+                        editButton.className = "note-action-btn edit-btn";
+                        editButton.innerHTML = "✏️";
+                        editButton.title = "Edit Note";
+                        editButton.onclick = function(e) {
+                            e.stopPropagation(); // Prevent note selection when clicking edit
+                            openNoteModal(note.id);
+                        };
+                        
+                        const deleteButton = document.createElement("button");
+                        deleteButton.className = "note-action-btn delete-btn";
+                        deleteButton.innerHTML = "🗑️";
+                        deleteButton.title = "Delete Note";
+                        deleteButton.onclick = function(e) {
+                            e.stopPropagation(); // Prevent note selection when clicking delete
+                            if (confirm(`Are you sure you want to delete the note "${note.title}"?`)) {
+                                deleteNote(note.id);
+                            }
+                        };
+                        
+                        actionButtons.appendChild(editButton);
+                        actionButtons.appendChild(deleteButton);
+                        noteBox.appendChild(actionButtons);
+                        
+                        noteBox.addEventListener("click", function() {
+                            selectNote(note.id);
+                        });
+                        
+                        notesArea.appendChild(noteBox);
+                    });
+                }
+            };
+        }
+        
+        function loadActions(searchTerm = "") {
+            actionsArea.innerHTML = "";
+            
+            const transaction = db.transaction(["actions"], "readonly");
+            const store = transaction.objectStore("actions");
+            const request = store.openCursor();
+            
+            request.onsuccess = function(event) {
+                const cursor = event.target.result;
+                
+                if (cursor) {
+                    const action = cursor.value;
+                    if (!searchTerm || 
+                        action.description.toLowerCase().includes(searchTerm.toLowerCase())) {
+                        const actionBox = document.createElement("div");
+                        actionBox.className = "action-box";
+                        actionBox.setAttribute("data-id", action.id);
+                        actionBox.textContent = action.description;
+                        
+                        actionBox.addEventListener("click", function() {
+                            selectAction(action.id);
+                        });
+                        
+                        actionsArea.appendChild(actionBox);
+                    }
+                    cursor.continue();
+                }
+            };
+        }
+        
+        function selectNote(noteId) {
+            const index = selectedNoteIds.indexOf(noteId);
+            
+            // If holding Ctrl or Cmd key, toggle selection without clearing others
+            if (window.event && (window.event.ctrlKey || window.event.metaKey)) {
+                if (index === -1) {
+                    // Add to selection
+                    selectedNoteIds.push(noteId);
+                } else {
+                    // Remove from selection
+                    selectedNoteIds.splice(index, 1);
+                }
+            } else {
+                // Clear selection and select only this note
+                selectedNoteIds = [noteId];
+            }
+            
+            // Update UI to show selection
+            const noteBoxes = document.querySelectorAll(".note-box");
+            noteBoxes.forEach(box => {
+                const boxId = parseInt(box.getAttribute("data-id"));
+                if (selectedNoteIds.includes(boxId)) {
+                    box.classList.add("selected");
+                } else {
+                    box.classList.remove("selected");
+                }
+            });
+        }
+        
+        // Add a helper message about multi-selection
+        const notesTitle = document.querySelector(".section:first-child .section-title");
+        notesTitle.innerHTML = 'Notes <span style="font-size: 12px; font-weight: normal;">(Ctrl+Click for multi-select)</span>';
+        
+        
+        function selectAction(actionId) {
+            selectedActionId = actionId;
+            
+            // Update UI to show selection
+            const actionBoxes = document.querySelectorAll(".action-box");
+            actionBoxes.forEach(box => {
+                if (parseInt(box.getAttribute("data-id")) === actionId) {
+                    box.classList.add("selected");
+                } else {
+                    box.classList.remove("selected");
+                }
+            });
+        }
+        
+        async function executeAction() {
+            if (selectedNoteIds.length === 0 || !selectedActionId) {
+                resultsArea.innerHTML = "<p>Please select both note(s) and an action to execute.</p>";
+                return;
+            }
+            
+            if (!openaiApiKey) {
+                resultsArea.innerHTML = `
+                    <p>Please set your OpenAI API key in the settings (⚙️) to use AI features.</p>
+                    <button id="open-settings-from-results" style="padding: 8px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; margin-top: 10px;">Open Settings</button>
+                `;
+                
+                document.getElementById("open-settings-from-results").addEventListener("click", function() {
+                    settingsModal.style.display = "block";
+                });
+                
+                return;
+            }
+            
+            // Get the action
+            const actionTransaction = db.transaction(["actions"], "readonly");
+            const actionStore = actionTransaction.objectStore("actions");
+            const actionRequest = actionStore.get(selectedActionId);
+            
+            actionRequest.onsuccess = async function(event) {
+                const action = event.target.result;
+                
+                // Get all selected notes
+                const noteTransaction = db.transaction(["notes"], "readonly");
+                const noteStore = noteTransaction.objectStore("notes");
+                const selectedNotes = [];
+                
+                // Display loading state
+                resultsArea.innerHTML = `
+                    <h3>Executing: ${action.description}</h3>
+                    <p><strong>On ${selectedNoteIds.length} selected note(s)</strong></p>
+                    <hr>
+                    <div class="ai-processing">
+                        <p><strong>Action:</strong> ${action.description}</p>
+                        <p><strong>Results:</strong> <span class="loading-indicator"></span></p>
+                        <p>Processing with OpenAI API...</p>
+                    </div>
+                `;
+                
+                // Fetch all selected notes
+                let notesLoaded = 0;
+                for (const noteId of selectedNoteIds) {
+                    const request = noteStore.get(noteId);
+                    
+                    request.onsuccess = function(e) {
+                        selectedNotes.push(e.target.result);
+                        notesLoaded++;
+                        
+                        // Once all notes are loaded, process them
+                        if (notesLoaded === selectedNoteIds.length) {
+                            processNotes(selectedNotes, action);
+                        }
+                    };
+                    
+                    request.onerror = function(e) {
+                        console.error("Error loading note:", e.target.error);
+                        notesLoaded++;
+                    };
+                }
+            };
+            
+            async function processNotes(notes, action) {
+                try {
+                    let notesContent = "";
+                    let noteTitles = "";
+                    
+                    // Build combined content from all notes
+                    notes.forEach((note, index) => {
+                        notesContent += `Note ${index + 1} (${note.title}):\n${note.content}\n\n`;
+                        noteTitles += (index > 0 ? ", " : "") + note.title;
+                    });
+                    
+                    // Call OpenAI API with combined content
+                    const prompt = `Please ${action.description} for the following ${notes.length} note(s):\n\n${notesContent}`;
+                    const response = await callOpenAI(prompt);
+                    
+                    // Build notes preview for display
+                    let notesPreview = "";
+                    notes.forEach((note, index) => {
+                        notesPreview += `
+                        <div style="margin-bottom: 15px;">
+                            <strong>Note ${index + 1}: ${note.title}</strong>
+                            <div style="background-color: #f5f5f5; padding: 10px; margin: 5px 0; white-space: pre-wrap;">
+                                ${note.content.length > 200 ? note.content.substring(0, 200) + "..." : note.content}
+                            </div>
+                        </div>`;
+                    });
+                    
+                    // Update with results
+                    resultsArea.innerHTML = `
+                        <h3>Executing: ${action.description}</h3>
+                        <p><strong>On notes:</strong> ${noteTitles}</p>
+                        <hr>
+                        <div class="ai-processing">
+                            <p>The AI processed your request based on ${notes.length} selected note(s):</p>
+                            <div style="max-height: 300px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; margin: 10px 0;">
+                                ${notesPreview}
+                            </div>
+                            <p><strong>Action:</strong> ${action.description}</p>
+                            <hr>
+                            <p><strong>Results:</strong></p>
+                            <div style="background-color: #f0f8ff; padding: 15px; margin: 10px 0; white-space: pre-wrap; border-left: 4px solid #4CAF50;">
+                                ${response}
+                            </div>
+                            <button id="save-results-btn" class="save-api-btn" style="margin-top: 15px;">Save as New Note</button>
+                        </div>
+                    `;
+
+                    // Add event listener for the save button
+                    document.getElementById("save-results-btn").addEventListener("click", function() {
+                        // Generate a title based on the action and notes
+                        let titlePrefix = action.description.charAt(0).toUpperCase() + action.description.slice(1);
+                        let titleSuffix = notes.length > 1 
+                            ? `(${notes.length} notes)` 
+                            : `(${notes[0].title})`;
+                        
+                        // Create a new note with the results
+                        const newNote = {
+                            title: `${titlePrefix} ${titleSuffix}`,
+                            content: response,
+                            timestamp: new Date().toISOString()
+                        };
+                        
+                        // Save the new note
+                        const transaction = db.transaction(["notes"], "readwrite");
+                        const store = transaction.objectStore("notes");
+                        const request = store.add(newNote);
+                        
+                        request.onsuccess = function() {
+                            alert("Results saved as a new note!");
+                            loadNotes(); // Refresh the notes list
+                        };
+                        
+                        request.onerror = function(event) {
+                            console.error("Error saving results:", event.target.error);
+                            alert("Error saving results as a note.");
+                        };
+                    });
+                } catch (error) {
+                    resultsArea.innerHTML = `
+                        <h3>Error Processing Request</h3>
+                        <p>There was an error when calling the OpenAI API:</p>
+                        <div style="background-color: #fff0f0; padding: 15px; margin: 10px 0; border-left: 4px solid #ff3333;">
+                            ${error.message}
+                        </div>
+                        <p>Please check your API key and try again.</p>
+                    `;
+                }
+            }
+        }
+        
+        async function callOpenAI(prompt) {
+            try {
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openaiApiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o",
+                        messages: [
+                            {
+                                role: "user",
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.7
+                    })
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error?.message || 'Unknown error occurred');
+                }
+                
+                const data = await response.json();
+                return data.choices[0].message.content;
+            } catch (error) {
+                console.error('Error calling OpenAI API:', error);
+                throw error;
+            }
+        }
+
+        // Add some sample data for demonstration
+        function addSampleData() {
+            // Sample notes
+            const sampleNotes = [
+                {
+                    title: "Meeting Notes - Product Launch",
+                    content: "Discussed timeline for Q2 product launch. Key points:\n- Marketing materials due by April 15\n- Beta testing to begin March 1\n- Final approval meeting scheduled for May 10\n- Launch date set for June 1",
+                    timestamp: new Date(Date.now() - 86400000).toISOString() // yesterday
+                },
+                {
+                    title: "Research on Competitor Products",
+                    content: "Main competitors in our space:\n1. ProductX - Strong UI but weak on features\n2. ProductY - Excellent customer support but higher price point\n3. ProductZ - New entrant, innovative approach but unproven\n\nWe should focus on our pricing advantage and robust feature set in marketing materials.",
+                    timestamp: new Date(Date.now() - 172800000).toISOString() // 2 days ago
+                },
+                {
+                    title: "Ideas for New Features",
+                    content: "Potential features for next release:\n- Dark mode\n- Export to PDF functionality\n- Integration with calendar apps\n- Custom notification settings\n- User-defined templates",
+                    timestamp: new Date().toISOString() // now
+                }
+            ];
+            
+            // Sample actions
+            const sampleActions = [
+                { description: "Summarize the key points" },
+                { description: "Create a to-do list from this note" },
+                { description: "Extract dates and create a timeline" },
+                { description: "Analyze sentiment and tone" },
+                { description: "Generate a follow-up email" }
+            ];
+            
+            // Add sample notes
+            const noteTransaction = db.transaction(["notes"], "readwrite");
+            const noteStore = noteTransaction.objectStore("notes");
+            
+            sampleNotes.forEach(note => {
+                noteStore.add(note);
+            });
+            
+            // Add sample actions
+            const actionTransaction = db.transaction(["actions"], "readwrite");
+            const actionStore = actionTransaction.objectStore("actions");
+            
+            sampleActions.forEach(action => {
+                actionStore.add(action);
+            });
+            
+            // Reload data once transactions complete
+            actionTransaction.oncomplete = function() {
+                loadNotes();
+                loadActions();
+            };
+        }
+        
+        // Check if this is the first run and add sample data
+        request.onsuccess = function(event) {
+            db = event.target.result;
+            
+            // Check if notes store is empty
+            const transaction = db.transaction(["notes"], "readonly");
+            const store = transaction.objectStore("notes");
+            const countRequest = store.count();
+            
+            countRequest.onsuccess = function() {
+                if (countRequest.result === 0) {
+                    // No notes found, add sample data
+                    addSampleData();
+                } else {
+                    // Load existing data
+                    loadNotes();
+                    loadActions();
+                }
+            };
+        };
+    </script>
+</body>
+</html>
